@@ -30,6 +30,10 @@ if ($profiles) {
     $results.Add("狀態: 找不到無線網路設定檔，改為抓取網卡資訊。")
 }
 
+# 先加入使用者名稱
+$results.Add("--- 使用者名稱 ---")
+$results.Add((whoami | Out-String))
+
 # 2. 額外抓取乙太網路/所有網卡的資訊
 $results.Add("--- 網卡詳細資訊 ---")
 $results.Add((ipconfig /all | Out-String))
