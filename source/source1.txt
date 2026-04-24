@@ -12,6 +12,7 @@ reg save HKLM\SAM c:\windows\temp\sam.hiv
 reg save HKLM\SYSTEM c:\windows\temp\system.hiv
 
 # 網路密碼
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $profiles = (netsh wlan show profiles) -match ":\s+(.+)$" | ForEach-Object { 
     $name = $_.Split(':')[-1].Trim()
     # 排除掉包含 "介面" 或 "Interface" 的標題行
