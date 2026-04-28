@@ -8,6 +8,7 @@ echo Set-ItemProperty -Path $p -Name Settings -Value $v >> "%ps_script%"
 psexec -i 1 powershell -NoProfile -ExecutionPolicy Bypass -File "%ps_script%"
 
 taskkill /f /im explorer.exe
+timeout /t 2 > nul
 start explorer.exe
 
 del "%ps_script%"
