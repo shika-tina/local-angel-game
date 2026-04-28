@@ -1,0 +1,15 @@
+@echo off
+set "target_url=%~1"
+
+:: 如果沒提供參數，則使用預設的 Rick Roll 圖片
+if "%target_url%"=="" (
+    set "target_url=https://wallpaperaccess.com/full/5850088.jpg"
+)
+
+:: 下載圖片
+powershell -Command "iwr %target_url% -o C:\windows\temp\temp1.jpg"
+
+:: 執行桌布切換指令
+psexec -s -i 1 powershell -c "taskkill /f /im wallpaper64.exe; Add-Type 'using System.Runtime.InteropServices; public class W {[DllImport(\"user32.dll\")] public static extern int SystemParametersInfo(int a, int b, string c, int d);}'; [W]::SystemParametersInfo(20, 0, 'C:\windows\temp\temp1.jpg', 3)"
+
+echo 桌布已更新為: %target_url%

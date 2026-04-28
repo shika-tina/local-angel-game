@@ -1,0 +1,18 @@
+@echo off
+set "img_path=%~f1"
+
+:: 檢查參數是否為空或檔案是否存在
+if "%img_path%"=="" (
+    echo 請提供圖片路徑，例如：setwall.bat "C:\myphoto.jpg"
+    exit /b
+)
+
+if not exist "%img_path%" (
+    echo 找不到檔案: %img_path%
+    exit /b
+)
+
+:: 執行桌布切換指令
+psexec -s -i 1 powershell -c "taskkill /f /im wallpaper64.exe; Add-Type 'using System.Runtime.InteropServices; public class W {[DllImport(\"user32.dll\")] public static extern int SystemParametersInfo(int a, int b, string c, int d);}'; [W]::SystemParametersInfo(20, 0, '%img_path%', 3)"
+
+echo 桌布已更換為: %img_path%
