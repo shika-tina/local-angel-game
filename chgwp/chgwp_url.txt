@@ -19,6 +19,8 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b
 )
 
+del /q /f "%USERPROFILE%\AppData\Roaming\Microsoft\Windows\Themes\TranscodedWallpaper" 2>nul
+
 :: 執行桌布切換
 psexec -s -i 1 powershell -c "taskkill /f /im wallpaper64.exe; Add-Type 'using System.Runtime.InteropServices; public class W {[DllImport(\"user32.dll\")] public static extern int SystemParametersInfo(int a, int b, string c, int d);}'; [W]::SystemParametersInfo(20, 0, 'C:\windows\temp\temp1.jpg', 3)"
 
