@@ -1,15 +1,25 @@
 @echo off
-set "target_url=%~1"
+setlocal
 
-:: 如果沒提供參數，則使用預設的 Rick Roll 圖片
-if "%target_url%"=="" (
-    set "target_url=https://wallpaperaccess.com/full/5850088.jpg"
+:: 獲取參數並去掉引號，存入變數
+set "RAW_URL=%~1"
+
+:: 如果參數為空，設定預設值
+if "%RAW_URL%"=="" (
+    set "RAW_URL=https://wallpaperaccess.com/full/5850088.jpg"
 )
 
-:: 下載圖片
-powershell -Command "iwr %target_url% -o C:\windows\temp\temp1.jpg"
+:: 重要：在 CMD/PowerShell 混合環境下，這能確保網址被完整傳遞給 PowerShell
+:: 我們不直接把變數寫在指令裡，而是讓 PowerShell 去讀取環境變數
+powershell -Command "$url = $env:RAW_URL; Invoke-WebRequest -Uri $url -OutFile C:\windows\temp\temp1.jpg"
 
-:: 執行桌布切換指令
+if %ERRORLEVEL% NEQ 0 (
+    echo [錯誤] 下載失敗。
+    echo 考慮改成 "網址" 或在 powershell 中加上 --%% "網址"
+    exit /b
+)
+
+:: 執行桌布切換
 psexec -s -i 1 powershell -c "taskkill /f /im wallpaper64.exe; Add-Type 'using System.Runtime.InteropServices; public class W {[DllImport(\"user32.dll\")] public static extern int SystemParametersInfo(int a, int b, string c, int d);}'; [W]::SystemParametersInfo(20, 0, 'C:\windows\temp\temp1.jpg', 3)"
 
-echo 桌布已更新為: %target_url%
+echo 桌布已更新。
