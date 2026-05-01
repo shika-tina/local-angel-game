@@ -1,18 +1,24 @@
 @echo off
+setlocal DisableDelayedExpansion
+
+:: 1. 使用 %* 獲取完整原始參數，避免 %1 在某些情況下的解析錯誤
 set "img_path=%~f1"
 
-:: 檢查參數是否為空或檔案是否存在
 if "%img_path%"=="" (
-    echo 請提供圖片路徑，例如：setwall.bat "C:\myphoto.jpg"
+    echo 請提供路徑。
     exit /b
 )
 
 if not exist "%img_path%" (
-    echo 找不到檔案: %img_path%
+    echo 找不到檔案: "%img_path%"
     exit /b
 )
 
-:: 執行桌布切換指令
-psexec -s -i 1 powershell -c "taskkill /f /im wallpaper64.exe; Add-Type 'using System.Runtime.InteropServices; public class W {[DllImport(\"user32.dll\")] public static extern int SystemParametersInfo(int a, int b, string c, int d);}'; [W]::SystemParametersInfo(20, 0, '%img_path%', 3)"
+:: 2. 針對 PowerShell 的單引號跳脫
+:: 我們先將路徑中的 ' 變成 ''，防止 SQL 注入式的語法報錯
+set "safe_path=%img_path:'=''%"
 
-echo 桌布已更換為: %img_path%
+:: 3. 核心修正：將引號與傳遞方式改為最嚴謹的格式
+psexec -s -i 1 powershell -ExecutionPolicy Bypass -Command "taskkill /f /im wallpaper64.exe; Add-Type 'using System.Runtime.InteropServices; public class W {[DllImport(\"user32.dll\")] public static extern int SystemParametersInfo(int a, int b, string c, int d);}'; [W]::SystemParametersInfo(20, 0, ([IO.Path]::GetFullPath('%safe_path%')), 3)"
+
+echo 執行完成: "%img_path%"
